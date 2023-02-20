@@ -1,4 +1,5 @@
 import math
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -89,7 +90,7 @@ def parse_cbddlp(buf: np.ndarray):
     for _, v in out.items(): v.flags.writeable = True
     return out
 
-def add_image_to_cbddlp(buf_orig: np.ndarray, image: np.ndarray, exposure_time_s: float = 7*60):
+def add_image_to_cbddlp(buf_orig: np.ndarray, image: np.ndarray, exposure_time_s: float = 5*60):
     image_encoded = encode_image(image.T)
     parsed_orig = parse_cbddlp(buf_orig)
     metadata_sz = buf_orig.size - parsed_orig['image_len'][0]
@@ -110,6 +111,11 @@ def add_image_to_cbddlp(buf_orig: np.ndarray, image: np.ndarray, exposure_time_s
     parsed_out['z_height'][:] = 0  # I hope you took your print head off.
     return buf_out
 
+def trim_whitespace(image: np.ndarray):
+    x_extent = np.argwhere(np.sum(image, axis=0)).squeeze()[[0, -1]]
+    y_extent = np.argwhere(np.sum(image, axis=1)).squeeze()[[0, -1]]
+    image = image[ y_extent[0]:y_extent[1],x_extent[0]:x_extent[1]]
+    return image
 
 def parse_gerber_svg(fname: str, dpi: int):
     with open(fname, 'rb') as f:
@@ -119,6 +125,7 @@ def parse_gerber_svg(fname: str, dpi: int):
     image = image.sum(axis=-1)  # get rid of rgba channel
     image[image > 0] = 1
     image = image.astype(np.uint8)
+
     return image
 
 def read_buf(fname: str):
@@ -128,9 +135,10 @@ def read_buf(fname: str):
     return buf
 
 if __name__ == "__main__":
-    import os; os.chdir(r"C:\Users\harry\Documents\Git\Resin-printer-pcb")  # jank to run in vscode
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
     base_fname = r"single_layer_circle.cbddlp"
-    gerber_fname = r"C:\Users\harry\Documents\Git\Resin-printer-pcb\fet_1-F_Cu.svg"
+    gerber_fname = r"fet_1-F_Cu.svg"
 
     buf = read_buf(base_fname).copy()
     parsed = parse_cbddlp(buf)
@@ -141,6 +149,8 @@ if __name__ == "__main__":
     dpi = int(round(dpi[0]))
 
     gerber = parse_gerber_svg(gerber_fname, dpi)
+    gerber = trim_whitespace(gerber)
+    
     # gerber[:] = 1
     if gerber.shape[0] > screen_res[0]:
         gerber = gerber.T
@@ -155,12 +165,16 @@ if __name__ == "__main__":
     with open(out_fname, "wb") as f:
         f.write(buf_out)
     try:
-        with open(os.path.join(r"G:\ "[0:-1], out_fname), "wb") as f:
+        
+        out_fname =os.path.join(r"/media/harry/3D PRINTER", out_fname) 
+        with open(out_fname, "wb") as f:
+        # with open(os.path.join(r"G:\ "[0:-1], out_fname), "wb") as f:
             f.write(buf_out)
+        print(f"wrote output to {out_fname}")
     except FileNotFoundError: 
         print("could not write to usb")
 
-    if False:
+    if True:
         encoded_image = parsed['encoded_image']
         img = decode_image(encoded_image, screen_res)
         encoded_diy = encode_image(img)
