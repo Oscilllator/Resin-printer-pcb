@@ -90,7 +90,7 @@ def parse_cbddlp(buf: np.ndarray):
     for _, v in out.items(): v.flags.writeable = True
     return out
 
-def add_image_to_cbddlp(buf_orig: np.ndarray, image: np.ndarray, exposure_time_s: float = 5*60):
+def add_image_to_cbddlp(buf_orig: np.ndarray, image: np.ndarray, exposure_time_s: float = 600):
     image_encoded = encode_image(image.T)
     parsed_orig = parse_cbddlp(buf_orig)
     metadata_sz = buf_orig.size - parsed_orig['image_len'][0]
@@ -166,12 +166,12 @@ if __name__ == "__main__":
         f.write(buf_out)
     try:
         
-        out_fname =os.path.join(r"/media/harry/3D PRINTER", out_fname) 
-        with open(out_fname, "wb") as f:
-        # with open(os.path.join(r"G:\ "[0:-1], out_fname), "wb") as f:
+        # usb_fname =os.path.join(r"/media/harry/3D PRINTER", usb_fname) 
+        usb_fname = os.path.join(r"G:\ "[0:-1], out_fname)
+        with open(usb_fname, "wb") as f:
             f.write(buf_out)
-        print(f"wrote output to {out_fname}")
-    except FileNotFoundError: 
+        print(f"wrote output to {usb_fname}")
+    except (FileNotFoundError, PermissionError): 
         print("could not write to usb")
 
     if True:
